@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome Replace插件</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Chrome Replace</h2>
+            <div class="status" id="status">就绪</div>
+        </div>
+        
+        <!-- 标签页导航 -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="manual">手动替换</button>
+            <button class="tab-button" data-tab="keywords">关键字管理</button>
+            <button class="tab-button" data-tab="settings">设置</button>
+        </div>
+        
+        <!-- 手动替换面板 -->
+        <div class="tab-content active" id="manual-tab">
+            <div class="content">
+                <div class="input-group">
+                    <label for="searchText">查找文本:</label>
+                    <input type="text" id="searchText" placeholder="输入要查找的文本...">
+                </div>
+                
+                <div class="input-group">
+                    <label for="replaceText">替换为:</label>
+                    <input type="text" id="replaceText" placeholder="输入替换文本...">
+                </div>
+                
+                <div class="options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="caseSensitive">
+                        <span class="checkmark"></span>
+                        区分大小写
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="wholeWord">
+                        <span class="checkmark"></span>
+                        全词匹配
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="useRegex">
+                        <span class="checkmark"></span>
+                        使用正则表达式
+                    </label>
+                </div>
+                
+                <div class="buttons">
+                    <button id="replaceBtn" class="btn btn-primary">替换</button>
+                    <button id="replaceAllBtn" class="btn btn-secondary">全部替换</button>
+                    <button id="clearBtn" class="btn btn-clear">清除</button>
+                </div>
+                
+                <div class="stats">
+                    <span id="matchCount">匹配: 0</span>
+                    <span id="replaceCount">已替换: 0</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 关键字管理面板 -->
+        <div class="tab-content" id="keywords-tab">
+            <div class="content">
+                <div class="keywords-header">
+                    <h3>关键字规则</h3>
+                    <button id="addKeywordBtn" class="btn btn-primary btn-small">+ 添加</button>
+                </div>
+                
+                <div class="keywords-list" id="keywordsList">
+                    <!-- 关键字列表将动态生成 -->
+                </div>
+                
+                <div class="keywords-actions">
+                    <button id="autoReplaceBtn" class="btn btn-secondary">立即执行自动替换</button>
+                    <button id="exportKeywordsBtn" class="btn btn-outline">导出规则</button>
+                    <button id="importKeywordsBtn" class="btn btn-outline">导入规则</button>
+                    <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                </div>
+            </div>
+        </div>
+        
+        <!-- 设置面板 -->
+        <div class="tab-content" id="settings-tab">
+            <div class="content">
+                <div class="settings-section">
+                    <h3>自动替换设置</h3>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="enableAutoReplace">
+                        <span class="checkmark"></span>
+                        启用页面加载时自动替换
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="enableHighlight">
+                        <span class="checkmark"></span>
+                        高亮显示替换的文本
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="enableNotification">
+                        <span class="checkmark"></span>
+                        显示替换通知
+                    </label>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>全局作用域</h3>
+                    <div class="input-group">
+                        <label for="globalScope">全局URL匹配规则:</label>
+                        <textarea id="globalScope" placeholder="每行一个URL规则，支持通配符 *&#10;例如:&#10;https://example.com/*&#10;*://github.com/*"></textarea>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>其他设置</h3>
+                    <div class="input-group">
+                        <label for="replaceDelay">替换延迟 (毫秒):</label>
+                        <input type="number" id="replaceDelay" min="0" max="5000" value="500">
+                    </div>
+                </div>
+                
+                <div class="buttons">
+                    <button id="saveSettingsBtn" class="btn btn-primary">保存设置</button>
+                    <button id="resetSettingsBtn" class="btn btn-clear">重置设置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 关键字编辑模态框 -->
+    <div class="modal" id="keywordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">添加关键字规则</h3>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="keywordName">规则名称:</label>
+                    <input type="text" id="keywordName" placeholder="给这个规则起个名字...">
+                </div>
+                
+                <div class="input-group">
+                    <label for="keywordSearch">查找内容:</label>
+                    <input type="text" id="keywordSearch" placeholder="要查找的关键字...">
+                </div>
+                
+                <div class="input-group">
+                    <label for="keywordReplace">替换内容:</label>
+                    <input type="text" id="keywordReplace" placeholder="替换为...">
+                </div>
+                
+                <div class="input-group">
+                    <label for="keywordUrls">作用域 (URL规则):</label>
+                    <textarea id="keywordUrls" placeholder="每行一个URL规则，支持通配符 *&#10;留空则应用到所有页面&#10;例如:&#10;https://example.com/*&#10;*://github.com/*"></textarea>
+                </div>
+                
+                <div class="options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="keywordCaseSensitive">
+                        <span class="checkmark"></span>
+                        区分大小写
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="keywordWholeWord">
+                        <span class="checkmark"></span>
+                        全词匹配
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="keywordUseRegex">
+                        <span class="checkmark"></span>
+                        使用正则表达式
+                    </label>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="keywordEnabled" checked>
+                        <span class="checkmark"></span>
+                        启用此规则
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveKeywordBtn" class="btn btn-primary">保存</button>
+                <button id="cancelKeywordBtn" class="btn btn-secondary">取消</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html> 

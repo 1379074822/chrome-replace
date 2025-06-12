@@ -1,0 +1,112 @@
+/* Chrome Replace插件内容样式 */
+
+/* 高亮匹配文本的样式 */
+.chrome-replace-highlight {
+    background-color: #ffff00 !important;
+    color: #000000 !important;
+    padding: 1px 2px !important;
+    border-radius: 2px !important;
+    box-shadow: 0 0 3px rgba(255, 255, 0, 0.5) !important;
+    animation: chrome-replace-blink 1s ease-in-out !important;
+}
+
+@keyframes chrome-replace-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* 替换后的闪烁效果 */
+.chrome-replace-replaced {
+    background-color: #4CAF50 !important;
+    color: #ffffff !important;
+    padding: 1px 2px !important;
+    border-radius: 2px !important;
+    animation: chrome-replace-success 1s ease-out forwards !important;
+}
+
+@keyframes chrome-replace-success {
+    0% {
+        background-color: #4CAF50;
+        transform: scale(1.1);
+    }
+    100% {
+        background-color: transparent;
+        transform: scale(1);
+        color: inherit;
+    }
+}
+
+/* 错误状态样式 */
+.chrome-replace-error {
+    background-color: #ff6b6b !important;
+    color: #ffffff !important;
+    padding: 1px 2px !important;
+    border-radius: 2px !important;
+    animation: chrome-replace-error-shake 0.5s ease-out !important;
+}
+
+@keyframes chrome-replace-error-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+}
+
+/* 确保样式不会被页面样式覆盖 */
+[class*="chrome-replace-"] {
+    box-sizing: border-box !important;
+    position: relative !important;
+    z-index: 2147483647 !important;
+}
+
+/* 通知样式 */
+.chrome-replace-notification {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    background: #333 !important;
+    color: white !important;
+    padding: 12px 16px !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    z-index: 2147483647 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    animation: chrome-replace-notification-slide 0.3s ease-out !important;
+    max-width: 300px !important;
+    word-wrap: break-word !important;
+}
+
+.chrome-replace-notification-success {
+    background: #28a745 !important;
+}
+
+.chrome-replace-notification-error {
+    background: #dc3545 !important;
+}
+
+.chrome-replace-notification-warning {
+    background: #ffc107 !important;
+    color: #000 !important;
+}
+
+@keyframes chrome-replace-notification-slide {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* 确保插件元素不被页面样式影响 */
+.chrome-replace-highlight,
+.chrome-replace-notification {
+    font-weight: normal !important;
+    font-style: normal !important;
+    text-decoration: none !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    line-height: normal !important;
+} 
