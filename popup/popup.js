@@ -21,6 +21,7 @@ class ChromeReplacePopup {
             replaceDelay: 500
         };
         this.currentEditingKeyword = null;
+        this.keywordListClickHandler = null;
         
         this.init();
     }
@@ -290,42 +291,77 @@ class ChromeReplacePopup {
                 <div class="empty-state">
                     <div class="empty-state-icon">📝</div>
                     <div class="empty-state-text">还没有设置关键字规则</div>
-                    <button class="btn btn-primary btn-small" onclick="window.chromeReplacePopup.openKeywordModal()">添加第一个规则</button>
+                    <button class="btn btn-primary btn-small" data-action="add-first-keyword">添加第一个规则</button>
                 </div>
             `;
-            return;
+        } else {
+            container.innerHTML = this.keywords.map((keyword, index) => `
+                <div class="keyword-item ${!keyword.enabled ? 'disabled' : ''}" data-index="${index}">
+                    <div class="keyword-header">
+                        <div class="keyword-name">${this.escapeHtml(keyword.name)}</div>
+                        <div class="keyword-actions">
+                            <button class="keyword-btn keyword-btn-toggle ${keyword.enabled ? 'enabled' : ''}" 
+                                    data-action="toggle" data-index="${index}">
+                                ${keyword.enabled ? '✓' : '✗'}
+                            </button>
+                            <button class="keyword-btn keyword-btn-edit" 
+                                    data-action="edit" data-index="${index}">
+                                编辑
+                            </button>
+                            <button class="keyword-btn keyword-btn-delete" 
+                                    data-action="delete" data-index="${index}">
+                                删除
+                            </button>
+                        </div>
+                    </div>
+                    <div class="keyword-details">
+                        <span class="keyword-search">${this.escapeHtml(keyword.searchText)}</span>
+                        →
+                        <span class="keyword-replace">${this.escapeHtml(keyword.replaceText)}</span>
+                        ${keyword.options.caseSensitive ? '<small>[区分大小写]</small>' : ''}
+                        ${keyword.options.wholeWord ? '<small>[全词匹配]</small>' : ''}
+                        ${keyword.options.useRegex ? '<small>[正则]</small>' : ''}
+                    </div>
+                    ${keyword.urls ? `<div class="keyword-urls">作用域: ${this.escapeHtml(keyword.urls.slice(0, 100))}</div>` : ''}
+                </div>
+            `).join('');
         }
         
-        container.innerHTML = this.keywords.map((keyword, index) => `
-            <div class="keyword-item ${!keyword.enabled ? 'disabled' : ''}">
-                <div class="keyword-header">
-                    <div class="keyword-name">${this.escapeHtml(keyword.name)}</div>
-                    <div class="keyword-actions">
-                        <button class="keyword-btn keyword-btn-toggle ${keyword.enabled ? 'enabled' : ''}" 
-                                onclick="window.chromeReplacePopup.toggleKeyword(${index})">
-                            ${keyword.enabled ? '✓' : '✗'}
-                        </button>
-                        <button class="keyword-btn keyword-btn-edit" 
-                                onclick="window.chromeReplacePopup.editKeyword(${index})">
-                            编辑
-                        </button>
-                        <button class="keyword-btn keyword-btn-delete" 
-                                onclick="window.chromeReplacePopup.deleteKeyword(${index})">
-                            删除
-                        </button>
-                    </div>
-                </div>
-                <div class="keyword-details">
-                    <span class="keyword-search">${this.escapeHtml(keyword.searchText)}</span>
-                    →
-                    <span class="keyword-replace">${this.escapeHtml(keyword.replaceText)}</span>
-                    ${keyword.options.caseSensitive ? '<small>[区分大小写]</small>' : ''}
-                    ${keyword.options.wholeWord ? '<small>[全词匹配]</small>' : ''}
-                    ${keyword.options.useRegex ? '<small>[正则]</small>' : ''}
-                </div>
-                ${keyword.urls ? `<div class="keyword-urls">作用域: ${this.escapeHtml(keyword.urls.slice(0, 100))}</div>` : ''}
-            </div>
-        `).join('');
+        // 绑定事件委托
+        this.bindKeywordListEvents();
+    }
+    
+    // 绑定关键字列表事件委托
+    bindKeywordListEvents() {
+        // 移除之前的事件监听器
+        this.elements.keywordsList.removeEventListener('click', this.keywordListClickHandler);
+        
+        // 创建事件处理器
+        this.keywordListClickHandler = (e) => {
+            const button = e.target.closest('button[data-action]');
+            if (!button) return;
+            
+            const action = button.dataset.action;
+            const index = parseInt(button.dataset.index);
+            
+            switch (action) {
+                case 'add-first-keyword':
+                    this.openKeywordModal();
+                    break;
+                case 'toggle':
+                    this.toggleKeyword(index);
+                    break;
+                case 'edit':
+                    this.editKeyword(index);
+                    break;
+                case 'delete':
+                    this.deleteKeyword(index);
+                    break;
+            }
+        };
+        
+        // 绑定事件委托
+        this.elements.keywordsList.addEventListener('click', this.keywordListClickHandler);
     }
     
     openKeywordModal(keyword = null, index = null) {
@@ -429,6 +465,13 @@ class ChromeReplacePopup {
             this.updateStatus('正在执行自动替换...', 'processing');
             
             const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+            
+            // 检查是否是特殊页面
+            if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://')) {
+                this.updateStatus('无法在此页面执行自动替换', 'error');
+                return;
+            }
+            
             const result = await chrome.tabs.sendMessage(tab.id, {
                 action: 'autoReplace',
                 data: {
@@ -444,7 +487,11 @@ class ChromeReplacePopup {
             }
         } catch (error) {
             console.error('自动替换失败:', error);
-            this.updateStatus('自动替换失败，请刷新页面后重试', 'error');
+            if (error.message.includes('Could not establish connection')) {
+                this.updateStatus('无法连接到页面，请刷新页面后重试', 'error');
+            } else {
+                this.updateStatus('自动替换失败，请刷新页面后重试', 'error');
+            }
         }
     }
     
@@ -535,6 +582,12 @@ class ChromeReplacePopup {
             // 获取当前活动标签页
             const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
             
+            // 检查是否是特殊页面
+            if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://')) {
+                this.updateStatus('无法在此页面执行替换操作', 'error');
+                return;
+            }
+            
             // 向内容脚本发送替换指令
             const result = await chrome.tabs.sendMessage(tab.id, {
                 action: 'replace',
@@ -555,7 +608,11 @@ class ChromeReplacePopup {
             }
         } catch (error) {
             console.error('替换操作失败:', error);
-            this.updateStatus('操作失败，请刷新页面后重试', 'error');
+            if (error.message.includes('Could not establish connection')) {
+                this.updateStatus('无法连接到页面，请刷新页面后重试', 'error');
+            } else {
+                this.updateStatus('操作失败，请刷新页面后重试', 'error');
+            }
         }
     }
     
@@ -569,6 +626,14 @@ class ChromeReplacePopup {
         
         try {
             const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+            
+            // 检查是否是特殊页面
+            if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://')) {
+                this.stats.matchCount = 0;
+                this.updateStatsDisplay();
+                return;
+            }
+            
             const result = await chrome.tabs.sendMessage(tab.id, {
                 action: 'count',
                 data: {
@@ -583,6 +648,9 @@ class ChromeReplacePopup {
             }
         } catch (error) {
             console.error('统计更新失败:', error);
+            // 静默处理统计错误，不显示给用户
+            this.stats.matchCount = 0;
+            this.updateStatsDisplay();
         }
     }
     
